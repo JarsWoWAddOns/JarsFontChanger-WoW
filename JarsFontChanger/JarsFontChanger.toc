@@ -1,0 +1,9 @@
+## Interface: 120001
+## Title: Jar's Font Changer
+## Notes: Change the global default font
+## Author: Jar
+## Version: 1.0
+## SavedVariables: JarsFontChangerDB
+## OptionalDeps: LibSharedMedia-3.0, SharedMediaAdditionalFonts
+
+JarsFontChanger.lua
