@@ -150,6 +150,9 @@ local function ApplyGlobalFont(fontPath)
         "NumberFont_Outline_Med",
         "NumberFont_Shadow_Med",
         "NumberFont_Shadow_Small",
+        -- Floating Combat Text (FCT) specific
+        "CombatTextFontOutline",
+        "CombatTextFontNormal",
         -- Nameplate fonts
         "SystemFont_NamePlate",
         "SystemFont_LargeNamePlate",
@@ -208,6 +211,40 @@ local function ApplyGlobalFont(fontPath)
     end
     
     JarsFontChangerDB.font = fontPath
+    
+    -- Hook into Blizzard's floating combat text
+    if COMBAT_TEXT_TYPE_INFO then
+        for textType, info in pairs(COMBAT_TEXT_TYPE_INFO) do
+            if info.fontName then
+                info.fontName = fontPath
+            end
+        end
+    end
+    
+    -- Try to update CombatText frames directly
+    if CombatText_UpdateDisplayedMessages then
+        pcall(CombatText_UpdateDisplayedMessages)
+    end
+    
+    -- Update any existing combat text font strings
+    for i = 1, 50 do
+        local frame = _G["CombatText" .. i]
+        if frame and frame.SetFont then
+            pcall(function()
+                local _, size, flags = frame:GetFont()
+                frame:SetFont(fontPath, size or 20, flags or "OUTLINE")
+            end)
+        end
+    end
+    
+    -- Update Blizzard's damage font frames if they exist
+    if DAMAGE_TEXT_FONT then
+        pcall(function()
+            local _, size, flags = DAMAGE_TEXT_FONT:GetFont()
+            DAMAGE_TEXT_FONT:SetFont(fontPath, size, flags)
+        end)
+    end
+    
     print("|cff00ff00Jar's Font Changer:|r Changed " .. changedCount .. " fonts. Type /reload to see all changes.")
 end
 
