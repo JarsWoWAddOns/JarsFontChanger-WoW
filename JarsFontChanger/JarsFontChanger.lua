@@ -274,9 +274,6 @@ local function CreateConfigFrame()
     fontLabel:SetPoint("TOPLEFT", 20, -70)
     fontLabel:SetText("Font:")
     
-    local fontDropdown = CreateFrame("Frame", "JFC_FontDropdown", frame, "UIDropDownMenuTemplate")
-    fontDropdown:SetPoint("TOPLEFT", 10, -85)
-    
     -- Get current font name
     local function GetCurrentFontName()
         for name, path in pairs(FONTS) do
@@ -286,23 +283,19 @@ local function CreateConfigFrame()
         end
         return "Friz Quadrata (Default)"
     end
-    
-    -- Initialize dropdown
-    UIDropDownMenu_SetWidth(fontDropdown, 300)
-    UIDropDownMenu_SetText(fontDropdown, GetCurrentFontName())
-    
-    -- Dropdown menu function
-    UIDropDownMenu_Initialize(fontDropdown, function(self, level)
-        local info = UIDropDownMenu_CreateInfo()
+
+    local fontDropdown = CreateFrame("DropdownButton", nil, frame, "WowStyle1DropdownTemplate")
+    fontDropdown:SetPoint("TOPLEFT", 20, -85)
+    fontDropdown:SetWidth(330)
+    fontDropdown:SetDefaultText(GetCurrentFontName())
+    fontDropdown:SetupMenu(function(_, rootDescription)
         for name, path in pairs(FONTS) do
-            info.text = name
-            info.func = function()
-                JarsFontChangerDB.font = path
-                UIDropDownMenu_SetText(fontDropdown, name)
-                ApplyGlobalFont(path)
-            end
-            info.checked = (path == JarsFontChangerDB.font)
-            UIDropDownMenu_AddButton(info)
+            rootDescription:CreateRadio(name,
+                function() return JarsFontChangerDB.font == path end,
+                function()
+                    JarsFontChangerDB.font = path
+                    ApplyGlobalFont(path)
+                end)
         end
     end)
     
