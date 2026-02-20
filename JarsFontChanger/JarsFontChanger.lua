@@ -248,33 +248,142 @@ local function ApplyGlobalFont(fontPath)
     print("|cff00ff00Jar's Font Changer:|r Changed " .. changedCount .. " fonts. Type /reload to see all changes.")
 end
 
+-- Modern dark UI color palette
+local UI = {
+    bg        = { 0.10, 0.10, 0.12, 0.95 },
+    header    = { 0.13, 0.13, 0.16, 1 },
+    accent    = { 0.30, 0.75, 0.75, 1 },
+    accentDim = { 0.20, 0.50, 0.50, 1 },
+    text      = { 0.90, 0.90, 0.90, 1 },
+    textDim   = { 0.55, 0.55, 0.58, 1 },
+    border    = { 0.22, 0.22, 0.26, 1 },
+    btnNormal = { 0.18, 0.18, 0.22, 1 },
+    btnHover  = { 0.24, 0.24, 0.28, 1 },
+    btnPress  = { 0.14, 0.14, 0.17, 1 },
+}
+
+local BACKDROP_INFO = {
+    bgFile   = "Interface\\Buttons\\WHITE8X8",
+    edgeFile = "Interface\\Buttons\\WHITE8X8",
+    edgeSize = 1,
+}
+
+-- Helper: create a flat modern button with hover / press states
+local function CreateModernButton(parent, text, width, height, onClick)
+    local btn = CreateFrame("Button", nil, parent, "BackdropTemplate")
+    btn:SetSize(width, height)
+    btn:SetBackdrop(BACKDROP_INFO)
+    btn:SetBackdropColor(unpack(UI.btnNormal))
+    btn:SetBackdropBorderColor(unpack(UI.border))
+
+    btn.label = btn:CreateFontString(nil, "OVERLAY")
+    btn.label:SetFont("Fonts\\FRIZQT__.TTF", 11)
+    btn.label:SetPoint("CENTER")
+    btn.label:SetTextColor(unpack(UI.accent))
+    btn.label:SetText(text)
+
+    btn:SetScript("OnEnter", function(self)
+        self:SetBackdropColor(unpack(UI.btnHover))
+    end)
+    btn:SetScript("OnLeave", function(self)
+        self:SetBackdropColor(unpack(UI.btnNormal))
+    end)
+    btn:SetScript("OnMouseDown", function(self)
+        self:SetBackdropColor(unpack(UI.btnPress))
+    end)
+    btn:SetScript("OnMouseUp", function(self)
+        self:SetBackdropColor(unpack(UI.btnHover))
+    end)
+    btn:SetScript("OnClick", onClick)
+
+    return btn
+end
+
 -- Create configuration window
 local function CreateConfigFrame()
-    local frame = CreateFrame("Frame", "JFC_ConfigFrame", UIParent, "BasicFrameTemplateWithInset")
-    frame:SetSize(400, 250)
+    -- Main frame
+    local frame = CreateFrame("Frame", "JFC_ConfigFrame", UIParent, "BackdropTemplate")
+    frame:SetSize(400, 280)
     frame:SetPoint("CENTER")
+    frame:SetBackdrop(BACKDROP_INFO)
+    frame:SetBackdropColor(unpack(UI.bg))
+    frame:SetBackdropBorderColor(unpack(UI.border))
     frame:SetMovable(true)
     frame:EnableMouse(true)
     frame:RegisterForDrag("LeftButton")
     frame:SetScript("OnDragStart", frame.StartMoving)
     frame:SetScript("OnDragStop", frame.StopMovingOrSizing)
+    frame:SetFrameStrata("DIALOG")
     frame:Hide()
-    
-    frame.title = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    frame.title:SetPoint("TOP", 0, -5)
-    frame.title:SetText("Jar's Font Changer Configuration")
-    
+
+    -- Escape-to-close
+    table.insert(UISpecialFrames, "JFC_ConfigFrame")
+
+    ----------------------------------------------------------------
+    -- Title bar
+    ----------------------------------------------------------------
+    local titleBar = CreateFrame("Frame", nil, frame, "BackdropTemplate")
+    titleBar:SetHeight(30)
+    titleBar:SetPoint("TOPLEFT", 0, 0)
+    titleBar:SetPoint("TOPRIGHT", 0, 0)
+    titleBar:SetBackdrop(BACKDROP_INFO)
+    titleBar:SetBackdropColor(unpack(UI.header))
+    titleBar:SetBackdropBorderColor(unpack(UI.border))
+
+    local titleText = titleBar:CreateFontString(nil, "OVERLAY")
+    titleText:SetFont("Fonts\\FRIZQT__.TTF", 13)
+    titleText:SetPoint("LEFT", 12, 0)
+    titleText:SetTextColor(unpack(UI.accent))
+    titleText:SetText("Jar's Font Changer")
+
+    -- Close button (minimal "x", turns red on hover)
+    local closeBtn = CreateFrame("Button", nil, titleBar)
+    closeBtn:SetSize(30, 30)
+    closeBtn:SetPoint("RIGHT", -2, 0)
+    closeBtn.label = closeBtn:CreateFontString(nil, "OVERLAY")
+    closeBtn.label:SetFont("Fonts\\FRIZQT__.TTF", 13)
+    closeBtn.label:SetPoint("CENTER")
+    closeBtn.label:SetTextColor(unpack(UI.textDim))
+    closeBtn.label:SetText("x")
+    closeBtn:SetScript("OnEnter", function(self)
+        self.label:SetTextColor(1, 0.30, 0.30, 1)
+    end)
+    closeBtn:SetScript("OnLeave", function(self)
+        self.label:SetTextColor(unpack(UI.textDim))
+    end)
+    closeBtn:SetScript("OnClick", function()
+        frame:Hide()
+    end)
+
+    ----------------------------------------------------------------
+    -- Scroll frame for content
+    ----------------------------------------------------------------
+    local scrollFrame = CreateFrame("ScrollFrame", nil, frame, "UIPanelScrollFrameTemplate")
+    scrollFrame:SetPoint("TOPLEFT", titleBar, "BOTTOMLEFT", 20, -6)
+    scrollFrame:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -28, 10)
+
+    local content = CreateFrame("Frame", nil, scrollFrame)
+    content:SetSize(330, 220)
+    scrollFrame:SetScrollChild(content)
+
+    ----------------------------------------------------------------
     -- Description
-    local desc = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    desc:SetPoint("TOP", 0, -35)
+    ----------------------------------------------------------------
+    local desc = content:CreateFontString(nil, "OVERLAY")
+    desc:SetFont("Fonts\\FRIZQT__.TTF", 11)
+    desc:SetPoint("TOPLEFT", 0, 0)
+    desc:SetTextColor(unpack(UI.textDim))
     desc:SetText("Select a font to use as the global default:")
-    
-    -- Font selection dropdown
-    local fontLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    fontLabel:SetPoint("TOPLEFT", 20, -70)
+
+    ----------------------------------------------------------------
+    -- Font dropdown
+    ----------------------------------------------------------------
+    local fontLabel = content:CreateFontString(nil, "OVERLAY")
+    fontLabel:SetFont("Fonts\\FRIZQT__.TTF", 11)
+    fontLabel:SetPoint("TOPLEFT", 0, -26)
+    fontLabel:SetTextColor(unpack(UI.text))
     fontLabel:SetText("Font:")
-    
-    -- Get current font name
+
     local function GetCurrentFontName()
         for name, path in pairs(FONTS) do
             if path == JarsFontChangerDB.font then
@@ -284,8 +393,8 @@ local function CreateConfigFrame()
         return "Friz Quadrata (Default)"
     end
 
-    local fontDropdown = CreateFrame("DropdownButton", nil, frame, "WowStyle1DropdownTemplate")
-    fontDropdown:SetPoint("TOPLEFT", 20, -85)
+    local fontDropdown = CreateFrame("DropdownButton", nil, content, "WowStyle1DropdownTemplate")
+    fontDropdown:SetPoint("TOPLEFT", 0, -42)
     fontDropdown:SetWidth(330)
     fontDropdown:SetDefaultText(GetCurrentFontName())
     fontDropdown:SetupMenu(function(_, rootDescription)
@@ -298,31 +407,32 @@ local function CreateConfigFrame()
                 end)
         end
     end)
-    
+
+    ----------------------------------------------------------------
     -- Apply button
-    local applyBtn = CreateFrame("Button", nil, frame, "GameMenuButtonTemplate")
-    applyBtn:SetSize(120, 25)
-    applyBtn:SetPoint("BOTTOM", 0, 50)
-    applyBtn:SetText("Apply Font")
-    applyBtn:SetScript("OnClick", function()
+    ----------------------------------------------------------------
+    local applyBtn = CreateModernButton(content, "Apply Font", 150, 28, function()
         ApplyGlobalFont(JarsFontChangerDB.font)
     end)
-    
+    applyBtn:SetPoint("TOPLEFT", 0, -86)
+
+    ----------------------------------------------------------------
     -- Reload UI button
-    local reloadBtn = CreateFrame("Button", nil, frame, "GameMenuButtonTemplate")
-    reloadBtn:SetSize(120, 25)
-    reloadBtn:SetPoint("BOTTOM", 0, 20)
-    reloadBtn:SetText("Reload UI")
-    reloadBtn:SetScript("OnClick", function()
+    ----------------------------------------------------------------
+    local reloadBtn = CreateModernButton(content, "Reload UI", 150, 28, function()
         ReloadUI()
     end)
-    
+    reloadBtn:SetPoint("LEFT", applyBtn, "RIGHT", 10, 0)
+
+    ----------------------------------------------------------------
     -- Info text
-    local info = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    info:SetPoint("BOTTOM", 0, 85)
+    ----------------------------------------------------------------
+    local info = content:CreateFontString(nil, "OVERLAY")
+    info:SetFont("Fonts\\FRIZQT__.TTF", 11)
+    info:SetPoint("TOPLEFT", 0, -124)
+    info:SetTextColor(unpack(UI.textDim))
     info:SetText("(Some UI elements may require a reload)")
-    info:SetTextColor(0.7, 0.7, 0.7)
-    
+
     return frame
 end
 
