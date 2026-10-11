@@ -1,19 +1,10 @@
--- Jar's Font Changer for WoW 12.0.1
+-- Jar's Font Changer for WoW 12.1
 -- Change the global default font
 
--- Saved variables with defaults
-JarsFontChangerDB = JarsFontChangerDB or {}
-
--- Initialize defaults
+-- Saved variables with defaults (merged on ADDON_LOADED, SV isnt there yet at file load)
 local defaults = {
     font = "Fonts\\FRIZQT__.TTF",
 }
-
-for key, value in pairs(defaults) do
-    if JarsFontChangerDB[key] == nil then
-        JarsFontChangerDB[key] = value
-    end
-end
 
 -- Frame references
 local configFrame
@@ -138,11 +129,8 @@ local function ApplyGlobalFont(fontPath)
         "Fancy30Font",
         "Fancy32Font",
         "Fancy48Font",
-        -- Damage/Combat text fonts
-        "DAMAGE_TEXT_FONT",
-        "UNIT_NAME_FONT",
-        "NAMEPLATE_FONT",
-        "STANDARD_TEXT_FONT",
+        -- DAMAGE_TEXT_FONT / UNIT_NAME_FONT / NAMEPLATE_FONT / STANDARD_TEXT_FONT are path strings
+        -- not font objects, they never got touched here. leave them alone (taint)
         -- Floating combat text
         "NumberFont_OutlineThick_Mono_Small",
         "NumberFont_Outline_Huge",
@@ -210,8 +198,15 @@ local function ApplyGlobalFont(fontPath)
         end
     end
     
+    -- nothing took it, font file is probly missing (uninstalled font pack)
+    if changedCount == 0 then
+        print("|cff00ff00Jar's Font Changer:|r font not found, keeping default: " .. tostring(fontPath))
+        JarsFontChangerDB.font = "Fonts\\FRIZQT__.TTF"
+        return
+    end
+
     JarsFontChangerDB.font = fontPath
-    
+
     -- Hook into Blizzard's floating combat text
     if COMBAT_TEXT_TYPE_INFO then
         for textType, info in pairs(COMBAT_TEXT_TYPE_INFO) do
@@ -237,15 +232,23 @@ local function ApplyGlobalFont(fontPath)
         end
     end
     
-    -- Update Blizzard's damage font frames if they exist
-    if DAMAGE_TEXT_FONT then
-        pcall(function()
-            local _, size, flags = DAMAGE_TEXT_FONT:GetFont()
-            DAMAGE_TEXT_FONT:SetFont(fontPath, size, flags)
-        end)
-    end
-    
+    -- DAMAGE_TEXT_FONT is a string, this always failed silently
+    -- if DAMAGE_TEXT_FONT then
+    --     pcall(function()
+    --         local _, size, flags = DAMAGE_TEXT_FONT:GetFont()
+    --         DAMAGE_TEXT_FONT:SetFont(fontPath, size, flags)
+    --     end)
+    -- end
+
     print("|cff00ff00Jar's Font Changer:|r Changed " .. changedCount .. " fonts. Type /reload to see all changes.")
+end
+
+-- put back what each font object had before we touched it
+local function RestoreFonts()
+    for fontName, orig in pairs(originalFonts) do
+        _G[fontName]:SetFont(orig[1], orig[2], orig[3])
+    end
+    JarsFontChangerDB.font = defaults.font
 end
 
 -- Modern dark UI color palette
@@ -445,14 +448,21 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
     if event == "ADDON_LOADED" then
         local addonName = ...
         if addonName == "JarsFontChanger" then
-            -- Load fonts from SharedMedia if available
-            LoadSharedMediaFonts()
+            JarsFontChangerDB = JarsFontChangerDB or {}
+            for key, value in pairs(defaults) do
+                if JarsFontChangerDB[key] == nil then
+                    JarsFontChangerDB[key] = value
+                end
+            end
         end
     elseif event == "PLAYER_LOGIN" then
         print("|cff00ff00Jar's Font Changer|r loaded. Type /jfc for options.")
         
+        -- LSM fonts at login so fonts from addons loading after us show up too
+        LoadSharedMediaFonts()
+
         -- Create config window
-        configFrame = CreateConfigFrame()
+        if not configFrame then configFrame = CreateConfigFrame() end
         
         -- Apply saved font after a short delay to ensure all UI elements are loaded
         C_Timer.After(0.5, function()
@@ -462,6 +472,12 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
         end)
     end
 end)
+
+-- JarsAddonConfig entry point
+function JarsFontChanger_OpenConfig()
+    if not configFrame then configFrame = CreateConfigFrame() end
+    configFrame:Show()
+end
 
 -- Slash commands
 SLASH_JARSFONTCHANGER1 = "/jfc"
@@ -475,8 +491,9 @@ SlashCmdList["JARSFONTCHANGER"] = function(msg)
         end
         
     elseif msg == "reset" then
-        JarsFontChangerDB.font = "Fonts\\FRIZQT__.TTF"
-        ApplyGlobalFont(JarsFontChangerDB.font)
+        -- JarsFontChangerDB.font = "Fonts\\FRIZQT__.TTF"
+        -- ApplyGlobalFont(JarsFontChangerDB.font)
+        RestoreFonts()
         print("|cff00ff00Jar's Font Changer|r Font reset to default")
         
     else
